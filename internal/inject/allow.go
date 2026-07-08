@@ -16,7 +16,17 @@ var sedPrintOnly = regexp.MustCompile(
 // extra holds user additions from CCINJECT_ALLOW: first-token match only —
 // read-only-ness of extras is the user's responsibility.
 func CheckAllowed(args []string, extra []string) error {
-	name := filepath.Base(args[0])
+	if len(args) == 0 {
+		return fmt.Errorf("empty command")
+	}
+	// The executor runs args[0] verbatim, so the barrier must reject any
+	// path-qualified command — otherwise a repo-committed ./tools/jq (basename
+	// "jq") would pass the allowlist and run as arbitrary code. Bare names
+	// resolve via PATH to the real tools.
+	if filepath.Base(args[0]) != args[0] {
+		return fmt.Errorf("command must be a bare name, not a path: %q", args[0])
+	}
+	name := args[0]
 	switch name {
 	case "git":
 		if len(args) < 2 {
@@ -40,7 +50,16 @@ func CheckAllowed(args []string, extra []string) error {
 		if !sedPrintOnly.MatchString(args[2]) {
 			return fmt.Errorf("sed script %q is not print-only", args[2])
 		}
-	case "cat", "jq", "wc", "head", "tail":
+	case "jq":
+		// jq selects from a JSON file given as a positional arg. Deny flags
+		// that read arbitrary files beyond that. (jq's env/$ENV can still
+		// disclose environment variables — inherent to jq, accepted here.)
+		for _, a := range args[1:] {
+			if a == "-f" || a == "--from-file" || a == "--rawfile" || a == "--slurpfile" {
+				return fmt.Errorf("jq flag %s not allowed (reads arbitrary files)", a)
+			}
+		}
+	case "cat", "wc", "head", "tail":
 	default:
 		for _, e := range extra {
 			if name == e {
