@@ -5,6 +5,32 @@ set -euo pipefail
 
 ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 BIN="$ROOT/bin/ccinject"
+
+resolve_repo() { # prints the "owner/repo" slug, or empty if none can be found
+  if [[ -n "${CCINJECT_REPO:-}" ]]; then
+    printf '%s' "$CCINJECT_REPO"; return
+  fi
+  local slug
+  slug=$(git -C "$ROOT" remote get-url origin 2>/dev/null \
+    | sed -E 's#^(git@|https://)github\.com[:/]##; s#\.git$##' || true)
+  if [[ -n "$slug" ]]; then
+    printf '%s' "$slug"; return
+  fi
+  # Plugin installs run this script from ~/.claude/plugins/cache/… which is an
+  # extracted plugin, not a git clone: no remote to read. So the manifest is the
+  # slug's source of truth here. Fail open — a parse error must still yield "".
+  sed -n 's/.*"repository"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$ROOT/.claude-plugin/plugin.json" 2>/dev/null | head -1 || true
+}
+
+# Test/debug short-circuit: print the resolved slug and exit before any network
+# or build. Keeps the resolution logic verifiable without touching the network.
+if [[ -n "${CCINJECT_PRINT_REPO:-}" ]]; then
+  resolve_repo
+  echo
+  exit 0
+fi
+
 mkdir -p "$ROOT/bin"
 
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -17,8 +43,7 @@ case "$arch" in
 esac
 
 version=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$ROOT/.claude-plugin/plugin.json" | head -1)
-repo="${CCINJECT_REPO:-$(git -C "$ROOT" remote get-url origin 2>/dev/null \
-  | sed -E 's#^(git@|https://)github\.com[:/]##; s#\.git$##' || true)}"
+repo=$(resolve_repo)
 
 sha_check() { # usage: sha_check <checksums-file> (in cwd, checks ./ccinject)
   if command -v sha256sum >/dev/null; then
