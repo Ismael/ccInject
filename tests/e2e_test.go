@@ -34,8 +34,8 @@ func TestE2EGitRepo(t *testing.T) {
 
 	prompt := "Verify the UI.\n" +
 		"@inject-file:kit.md\n" +
-		"@inject-cmd:`git log --oneline -1`\n" +
-		"@inject-cmd:`git push origin main`\n" // must fail: push not allowlisted
+		"@inject-cmd:`git log --oneline -1 | cat`\n" + // pipe now works: real shell
+		"@inject-cmd:`git push no-such-remote main`\n" // must fail: no such remote
 	stdin, _ := json.Marshal(map[string]any{
 		"tool_name": "Agent", "cwd": dir,
 		"tool_input": map[string]any{"prompt": prompt, "subagent_type": "general-purpose"},
@@ -45,7 +45,7 @@ func TestE2EGitRepo(t *testing.T) {
 		t.Fatal("want output")
 	}
 	s := string(out)
-	for _, want := range []string{"ui verify kit instructions", "add kit", "git push not allowed", "2 injected", "1 failed"} {
+	for _, want := range []string{"ui verify kit instructions", "add kit", "2 injected", "1 failed"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output missing %q:\n%s", want, s)
 		}

@@ -105,13 +105,13 @@ func TestRunAllSkippedEmitsMessageOnly(t *testing.T) {
 
 func TestRunFailureReported(t *testing.T) {
 	stdin := mustJSON(t, map[string]any{"tool_name": "Agent", "cwd": t.TempDir(),
-		"tool_input": map[string]any{"prompt": "@inject-cmd:`curl https://example.com`"}})
+		"tool_input": map[string]any{"prompt": "@inject-file:/no/such/ccinject-file.md"}})
 	out := Run(stdin, testCfg())
 	if out == nil {
 		t.Fatal("want output")
 	}
 	s := string(out)
-	if !strings.Contains(s, "1 failed") || !strings.Contains(s, "not in allowlist") {
+	if !strings.Contains(s, "1 failed") || !strings.Contains(s, "no such file") {
 		t.Errorf("failure not reported: %s", s)
 	}
 }

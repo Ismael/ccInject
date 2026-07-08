@@ -42,22 +42,19 @@ automatically; you don't need to change your CLAUDE.md.
 
 | Directive | Meaning |
 |---|---|
-| `@inject-file:<path>` | Inline the file (relative paths resolve against the session cwd). Binary files are rejected. |
-| `` @inject-cmd:`<command>` `` | Inline the command's stdout. No shell: no pipes, redirects, or substitution — but quoted metacharacters are fine (see the jq example above). |
+| `@inject-file:<path>` | Inline the file (relative paths resolve against the session cwd). Binary files are rejected. Only for files the subagent *reads* — injected content is prompt text, not a file on disk, so a subagent that must edit the file should open it itself. |
+| `` @inject-cmd:`<command>` `` | Inline the command's stdout. Runs through `sh -c`, so pipes, redirects, and substitutions all work. |
 
 Directives must start a line. Idempotent: a directive whose block (or whose
 identical content, ≥64 bytes) is already in the prompt is skipped.
 
-## Allowlist
+There is no command allowlist: `@inject-cmd` runs whatever the coordinator
+writes, with no permission prompt, at dispatch time. Vetting the command is the
+coordinator's job — see Caveats.
 
-Built-in: `git show|diff|log` (write/exec flags blocked), `cat`, `jq`,
-print-only `sed -n`, `wc`, `head`, `tail`. Extend with:
-
-```json
-{ "env": { "CCINJECT_ALLOW": "rg,ls,column" } }
-```
-
-Extras are matched by command name only — keeping them read-only is on you.
+An injection larger than `CCINJECT_MAX_INJECT_BYTES` (~0.4 MB, roughly 100k
+tokens) is not truncated; it is rejected whole with an
+`error="… is X MB, can't add fully"` marker so the subagent fetches it itself.
 
 ## Tuning
 
@@ -65,16 +62,18 @@ Extras are matched by command name only — keeping them read-only is on you.
 |---|---|---|
 | `CCINJECT_DISABLE` | — | `1` disables all rewriting |
 | `CCINJECT_NO_SESSION_CONTEXT` | — | `1` suppresses the SessionStart instruction block |
-| `CCINJECT_ALLOW` | — | comma-separated extra allowed commands |
 | `CCINJECT_CMD_TIMEOUT_MS` | 2000 | per-command timeout (then SIGKILL, whole process group) |
 | `CCINJECT_BUDGET_MS` | 5000 | total wall budget per dispatch |
-| `CCINJECT_MAX_INJECT_BYTES` | 32768 | per-injection cap (truncates) |
-| `CCINJECT_MAX_TOTAL_BYTES` | 131072 | total cap per dispatch |
+| `CCINJECT_MAX_INJECT_BYTES` | 409600 | per-injection cap; larger content is rejected whole (not truncated) |
 | `CCINJECT_MAX_DIRECTIVES` | 16 | directives per prompt |
 | `CCINJECT_REPO` | git remote | `owner/repo` override for setup downloads |
 
 ## Caveats
 
+- `@inject-cmd` executes arbitrary shell at dispatch time with **no permission
+  prompt** and **no allowlist** — by design, the coordinator is trusted to only
+  write safe commands. The directive is as powerful as whatever wrote the
+  dispatch prompt; treat an untrusted prompt source accordingly.
 - ccinject must be the **only** installed hook returning `updatedInput` for
   the Agent tool — Claude Code resolves multiple rewriters last-writer-wins,
   non-deterministically. Re-check when installing new plugins.

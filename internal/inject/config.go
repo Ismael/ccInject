@@ -3,17 +3,19 @@ package inject
 import (
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
 type Config struct {
-	CmdTimeout    time.Duration
-	Budget        time.Duration // total wall budget for all directives
-	MaxInject     int           // bytes per injection
-	MaxTotal      int           // bytes across all injections
+	CmdTimeout time.Duration
+	Budget     time.Duration // total wall budget for all directives
+	// MaxInject caps a single injection. Content over this size is NOT
+	// truncated — it is rejected whole with an "is X MB, can't add fully"
+	// marker, so the subagent fetches it itself instead of reading a silently
+	// clipped fragment. It doubles as the memory guard on reads/exec: a
+	// firehose (cat /dev/zero, a multi-GB file) is bounded to ~this many bytes.
+	MaxInject     int
 	MaxDirectives int
-	ExtraAllow    []string // CCINJECT_ALLOW additions
 }
 
 func envInt(key string, def int) int {
@@ -24,18 +26,12 @@ func envInt(key string, def int) int {
 }
 
 func ConfigFromEnv() Config {
-	var extra []string
-	for _, name := range strings.Split(os.Getenv("CCINJECT_ALLOW"), ",") {
-		if name = strings.TrimSpace(name); name != "" {
-			extra = append(extra, name)
-		}
-	}
 	return Config{
-		CmdTimeout:    time.Duration(envInt("CCINJECT_CMD_TIMEOUT_MS", 2000)) * time.Millisecond,
-		Budget:        time.Duration(envInt("CCINJECT_BUDGET_MS", 5000)) * time.Millisecond,
-		MaxInject:     envInt("CCINJECT_MAX_INJECT_BYTES", 32*1024),
-		MaxTotal:      envInt("CCINJECT_MAX_TOTAL_BYTES", 128*1024),
+		CmdTimeout: time.Duration(envInt("CCINJECT_CMD_TIMEOUT_MS", 2000)) * time.Millisecond,
+		Budget:     time.Duration(envInt("CCINJECT_BUDGET_MS", 5000)) * time.Millisecond,
+		// ~100k tokens at a rough 4 bytes/token ≈ 0.4 MB — the point past which
+		// a single injection is too big to be worth inlining.
+		MaxInject:     envInt("CCINJECT_MAX_INJECT_BYTES", 400*1024),
 		MaxDirectives: envInt("CCINJECT_MAX_DIRECTIVES", 16),
-		ExtraAllow:    extra,
 	}
 }

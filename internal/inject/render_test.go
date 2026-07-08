@@ -35,19 +35,3 @@ func TestRenderBody(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
-
-func TestTruncate(t *testing.T) {
-	// Non-KiB-aligned caps (tests, env overrides) must not report "0 KiB".
-	body, truncated := truncate(strings.Repeat("x", 100), 50)
-	if !truncated || len(body) <= 50 || !strings.Contains(body, "[ccinject: truncated at 50 bytes]") {
-		t.Errorf("got truncated=%v body=%q", truncated, body)
-	}
-	body, truncated = truncate(strings.Repeat("x", 40000), 32*1024)
-	if !truncated || !strings.Contains(body, "[ccinject: truncated at 32 KiB]") {
-		t.Errorf("KiB-aligned cap: got truncated=%v tail=%q", truncated, body[len(body)-40:])
-	}
-	body, truncated = truncate("short", 50)
-	if truncated || body != "short" {
-		t.Errorf("small body must pass through, got %q", body)
-	}
-}

@@ -14,7 +14,7 @@ func TestExecRunCommand(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "f.txt"), []byte("a\nb\nc\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _, err := RunCommand([]string{"wc", "-l", "f.txt"}, dir, 2*time.Second, 32*1024)
+	stdout, _, err := RunCommand("wc -l f.txt", dir, 2*time.Second, 32*1024)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,9 +25,9 @@ func TestExecRunCommand(t *testing.T) {
 
 func TestExecTimeoutKillsGroup(t *testing.T) {
 	start := time.Now()
-	// bash spawns a grandchild; the process-group kill must take both down
-	// without waiting for the grandchild's 30s sleep.
-	_, _, err := RunCommand([]string{"bash", "-c", "sleep 30 & wait"}, ".", 200*time.Millisecond, 32*1024)
+	// sh backgrounds a child sleep; the process-group kill must take both down
+	// without waiting for the child's 30s sleep.
+	_, _, err := RunCommand("sleep 30 & wait", ".", 200*time.Millisecond, 32*1024)
 	if err == nil || !strings.Contains(err.Error(), "timeout") {
 		t.Fatalf("want timeout error, got %v", err)
 	}
@@ -37,7 +37,7 @@ func TestExecTimeoutKillsGroup(t *testing.T) {
 }
 
 func TestExecNonZeroExit(t *testing.T) {
-	_, stderr, err := RunCommand([]string{"ls", "/nonexistent-ccinject-test"}, ".", 2*time.Second, 32*1024)
+	_, stderr, err := RunCommand("ls /nonexistent-ccinject-test", ".", 2*time.Second, 32*1024)
 	if err == nil || !strings.HasPrefix(err.Error(), "exit ") {
 		t.Fatalf("want 'exit N' error, got %v", err)
 	}
@@ -70,7 +70,7 @@ func TestExecRunCommandBounded(t *testing.T) {
 		t.Skip("/dev/zero is unix-only")
 	}
 	start := time.Now()
-	stdout, _, err := RunCommand([]string{"cat", "/dev/zero"}, ".", 300*time.Millisecond, 4096)
+	stdout, _, err := RunCommand("cat /dev/zero", ".", 300*time.Millisecond, 4096)
 	if err == nil || !strings.Contains(err.Error(), "timeout") {
 		t.Fatalf("want timeout error, got %v", err)
 	}

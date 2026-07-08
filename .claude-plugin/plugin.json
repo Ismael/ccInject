@@ -1,7 +1,7 @@
 {
   "name": "ccinject",
   "description": "Deterministic context injection for subagent dispatches: @inject-file / @inject-cmd directives in Agent prompts are expanded at spawn time",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "repository": "Ismael/ccInject",
   "author": { "name": "Ismael" }
 }

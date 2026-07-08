@@ -13,7 +13,6 @@ func testCfg() Config {
 		CmdTimeout:    2 * time.Second,
 		Budget:        5 * time.Second,
 		MaxInject:     32 * 1024,
-		MaxTotal:      128 * 1024,
 		MaxDirectives: 16,
 	}
 }
@@ -92,16 +91,16 @@ func TestProcessLimitsAndFailures(t *testing.T) {
 		t.Fatalf("budget: got %+v", out)
 	}
 
-	out = Process("@inject-cmd:`rm -rf x`\n", dir, testCfg())
-	if out.Failed != 1 || !strings.Contains(out.Prompt, "not in allowlist") {
-		t.Fatalf("allowlist rejection: got %+v", out)
-	}
-
+	// Over MaxInject: rejected whole with a size marker, never truncated.
+	os.WriteFile(filepath.Join(dir, "big.md"), []byte(strings.Repeat("x", 5000)), 0o644)
 	cfg = testCfg()
-	cfg.MaxTotal = 2
-	out = Process("@inject-file:a.md\n", dir, cfg) // "aaa" = 3 bytes > 2
-	if out.Failed != 1 || !strings.Contains(out.Prompt, "total size limit reached") {
-		t.Fatalf("total-size: got %+v", out)
+	cfg.MaxInject = 100
+	out = Process("@inject-file:big.md\n", dir, cfg)
+	if out.Failed != 1 || out.Injected != 0 || !strings.Contains(out.Prompt, "can't add fully") {
+		t.Fatalf("oversized file: got %+v", out)
+	}
+	if strings.Contains(out.Prompt, "xxxxx") {
+		t.Error("oversized content must not be partially injected")
 	}
 }
 

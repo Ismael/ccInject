@@ -82,13 +82,10 @@ func Process(prompt, cwd string, cfg Config) Outcome {
 			out.Skipped++
 			continue
 		}
-		body, truncated := truncate(body, cfg.MaxInject)
-		if total+len(body) > cfg.MaxTotal {
-			fail(d, fmt.Sprintf("total size limit reached (%d bytes)", cfg.MaxTotal), "")
-			continue
-		}
+		// Oversized content is rejected upstream in fetch (with an "is X MB"
+		// marker), never truncated — so whatever reaches here is injected whole.
 		total += len(body)
-		blocks = append(blocks, Block{Source: d.Source, Body: body, Truncated: truncated}.Render())
+		blocks = append(blocks, Block{Source: d.Source, Body: body}.Render())
 		out.Injected++
 	}
 	out.InjectedBytes = total
@@ -111,18 +108,11 @@ func fetch(d Directive, cwd string, cfg Config, deadline time.Time) (body, errTe
 		}
 		return string(data), "", ""
 	default: // "cmd"
-		args, err := SplitCommand(d.Arg)
-		if err != nil {
-			return "", err.Error(), ""
-		}
-		if err := CheckAllowed(args, cfg.ExtraAllow); err != nil {
-			return "", err.Error(), ""
-		}
 		timeout := cfg.CmdTimeout
 		if remain := time.Until(deadline); remain < timeout {
 			timeout = remain
 		}
-		stdout, stderr, err := RunCommand(args, cwd, timeout, cfg.MaxInject)
+		stdout, stderr, err := RunCommand(d.Arg, cwd, timeout, cfg.MaxInject)
 		if err != nil {
 			return "", err.Error(), clip(string(stderr), 1024)
 		}
