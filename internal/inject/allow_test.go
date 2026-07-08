@@ -54,6 +54,8 @@ func TestAllowlistRejectsPathAndJqFileFlags(t *testing.T) {
 		{"/tmp/evil/git", "show"},
 		{"tools/jq", "."},
 		{"jq", "-f", "filter.jq", "data.json"},
+		{"jq", "-nf", "filter.jq", "data.json"},
+		{"jq", "-rf", "/etc/passwd", "."},
 		{"jq", "--rawfile", "x", "/etc/passwd", "."},
 		{"jq", "--slurpfile", "x", "secrets.json", "."},
 		{"jq", "--from-file", "f.jq", "data.json"},

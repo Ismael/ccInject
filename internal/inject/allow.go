@@ -52,10 +52,15 @@ func CheckAllowed(args []string, extra []string) error {
 		}
 	case "jq":
 		// jq selects from a JSON file given as a positional arg. Deny flags
-		// that read arbitrary files beyond that. (jq's env/$ENV can still
-		// disclose environment variables — inherent to jq, accepted here.)
+		// that read arbitrary files beyond that. jq bundles short options, so
+		// -nf parses as -n -f — reject any short bundle containing f, not just
+		// the exact -f token. (jq's env/$ENV can still disclose environment
+		// variables — inherent to jq, accepted here.)
 		for _, a := range args[1:] {
-			if a == "-f" || a == "--from-file" || a == "--rawfile" || a == "--slurpfile" {
+			if a == "--from-file" || a == "--rawfile" || a == "--slurpfile" {
+				return fmt.Errorf("jq flag %s not allowed (reads arbitrary files)", a)
+			}
+			if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && strings.ContainsRune(a, 'f') {
 				return fmt.Errorf("jq flag %s not allowed (reads arbitrary files)", a)
 			}
 		}
