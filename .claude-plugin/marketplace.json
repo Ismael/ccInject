@@ -1,0 +1,11 @@
+{
+  "name": "ccinject",
+  "owner": { "name": "Ismael" },
+  "plugins": [
+    {
+      "name": "ccinject",
+      "source": "./",
+      "description": "Deterministic context injection for subagent dispatches: @inject-file / @inject-cmd directives in Agent prompts are expanded at spawn time"
+    }
+  ]
+}
