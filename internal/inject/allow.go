@@ -50,6 +50,22 @@ func CheckAllowed(args []string, extra []string) error {
 		if !sedPrintOnly.MatchString(args[2]) {
 			return fmt.Errorf("sed script %q is not print-only", args[2])
 		}
+		// After the one vetted script, sed still honors -e/--expression and
+		// -f/--file ANYWHERE — and an injected script can carry the `e` (exec)
+		// or `w`/`W` (write) verbs, a full sandbox escape past the print-only
+		// check above. So every remaining arg must be a plain file operand; a
+		// literal `--` ends option parsing (a dash-prefixed filename is fine
+		// after it).
+		sep := false
+		for _, a := range args[3:] {
+			if a == "--" {
+				sep = true
+				continue
+			}
+			if !sep && strings.HasPrefix(a, "-") {
+				return fmt.Errorf("sed option %q not allowed after script (exec/write bypass)", a)
+			}
+		}
 	case "jq":
 		// jq selects from a JSON file given as a positional arg. Deny flags
 		// that read arbitrary files beyond that. jq bundles short options, so

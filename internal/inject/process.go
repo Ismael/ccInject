@@ -101,7 +101,11 @@ func Process(prompt, cwd string, cfg Config) Outcome {
 func fetch(d Directive, cwd string, cfg Config, deadline time.Time) (body, errText, stderrExcerpt string) {
 	switch d.Kind {
 	case "file":
-		data, err := ReadInjectFile(d.Arg, cwd)
+		timeout := cfg.CmdTimeout
+		if remain := time.Until(deadline); remain < timeout {
+			timeout = remain
+		}
+		data, err := ReadInjectFile(d.Arg, cwd, cfg.MaxInject, timeout)
 		if err != nil {
 			return "", err.Error(), ""
 		}
@@ -118,7 +122,7 @@ func fetch(d Directive, cwd string, cfg Config, deadline time.Time) (body, errTe
 		if remain := time.Until(deadline); remain < timeout {
 			timeout = remain
 		}
-		stdout, stderr, err := RunCommand(args, cwd, timeout)
+		stdout, stderr, err := RunCommand(args, cwd, timeout, cfg.MaxInject)
 		if err != nil {
 			return "", err.Error(), clip(string(stderr), 1024)
 		}

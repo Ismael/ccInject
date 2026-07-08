@@ -39,6 +39,33 @@ func TestAllowlist(t *testing.T) {
 	}
 }
 
+func TestAllowlistSedNoExtraScripts(t *testing.T) {
+	// -e/-f inject additional scripts that can carry the e (exec) or w (write)
+	// verbs even though the one positional script is print-only: a sandbox
+	// escape. Every arg after the vetted script must be a plain file operand.
+	bad := [][]string{
+		{"sed", "-n", "p", "-e", "1e touch /tmp/x", "go.mod"},     // execute verb via -e
+		{"sed", "-n", "p", "-e", "1w /tmp/x", "go.mod"},           // write verb via -e
+		{"sed", "-n", "p", "--expression=1e id", "go.mod"},        // long form, = attached
+		{"sed", "-n", "p", "-f", "/tmp/script", "go.mod"},         // script file via -f
+	}
+	for _, args := range bad {
+		if err := CheckAllowed(args, nil); err == nil {
+			t.Errorf("%v: want rejection, got nil", args)
+		}
+	}
+	good := [][]string{
+		{"sed", "-n", "p", "go.mod"},
+		{"sed", "-n", "5,10p", "a.txt", "b.txt"},
+		{"sed", "-n", "p", "--", "-weirdfile"}, // -- lets a dash-file through
+	}
+	for _, args := range good {
+		if err := CheckAllowed(args, nil); err != nil {
+			t.Errorf("%v: want allowed, got %v", args, err)
+		}
+	}
+}
+
 func TestAllowlistExtra(t *testing.T) {
 	if err := CheckAllowed([]string{"rg", "foo", "src/"}, []string{"rg", "ls"}); err != nil {
 		t.Errorf("extra-allowed rg rejected: %v", err)
