@@ -61,6 +61,7 @@ tokens) is not truncated; it is rejected whole with an
 | Env var | Default | Meaning |
 |---|---|---|
 | `CCINJECT_DISABLE` | — | `1` disables all rewriting |
+| `CCINJECT_DISABLE_CMD` | — | `1` rejects `@inject-cmd` directives (error marker); `@inject-file` still works |
 | `CCINJECT_NO_SESSION_CONTEXT` | — | `1` suppresses the SessionStart instruction block |
 | `CCINJECT_CMD_TIMEOUT_MS` | 2000 | per-command timeout (then SIGKILL, whole process group) |
 | `CCINJECT_BUDGET_MS` | 5000 | total wall budget per dispatch |

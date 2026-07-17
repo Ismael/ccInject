@@ -64,6 +64,10 @@ func Process(prompt, cwd string, cfg Config) Outcome {
 			out.Skipped++
 			continue
 		}
+		if d.Kind == "cmd" && cfg.NoCmd {
+			fail(d, "cmd injection disabled (CCINJECT_DISABLE_CMD)", "")
+			continue
+		}
 		attempted++
 		if attempted > cfg.MaxDirectives {
 			fail(d, fmt.Sprintf("over directive limit (%d)", cfg.MaxDirectives), "")

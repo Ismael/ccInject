@@ -16,6 +16,10 @@ type Config struct {
 	// firehose (cat /dev/zero, a multi-GB file) is bounded to ~this many bytes.
 	MaxInject     int
 	MaxDirectives int
+	// NoCmd rejects @inject-cmd directives (with an error marker) so only
+	// @inject-file works. @inject-cmd runs arbitrary shell in prompts, and
+	// some environments want that surface closed.
+	NoCmd bool
 }
 
 func envInt(key string, def int) int {
@@ -33,5 +37,6 @@ func ConfigFromEnv() Config {
 		// a single injection is too big to be worth inlining.
 		MaxInject:     envInt("CCINJECT_MAX_INJECT_BYTES", 400*1024),
 		MaxDirectives: envInt("CCINJECT_MAX_DIRECTIVES", 16),
+		NoCmd:         os.Getenv("CCINJECT_DISABLE_CMD") == "1",
 	}
 }

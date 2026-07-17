@@ -104,6 +104,24 @@ func TestProcessLimitsAndFailures(t *testing.T) {
 	}
 }
 
+func TestProcessNoCmd(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.md"), []byte("file body"), 0o644)
+
+	cfg := testCfg()
+	cfg.NoCmd = true
+	out := Process("@inject-file:a.md\n@inject-cmd:`touch ran.txt`\n", dir, cfg)
+	if out.Injected != 1 || out.Failed != 1 {
+		t.Fatalf("want file injected and cmd failed, got %+v", out)
+	}
+	if !strings.Contains(out.Prompt, `error="cmd injection disabled (CCINJECT_DISABLE_CMD)"`) {
+		t.Errorf("want disabled marker, got:\n%s", out.Prompt)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "ran.txt")); err == nil {
+		t.Error("disabled command must not run")
+	}
+}
+
 func TestProcessMessage(t *testing.T) {
 	o := Outcome{Injected: 2, InjectedBytes: 12700, Skipped: 1, Failed: 1,
 		FailNotes: []string{"timeout after 2s: git log --all"}}
