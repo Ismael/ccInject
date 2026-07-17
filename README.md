@@ -1,5 +1,22 @@
 # ccinject
 
+Lets your main agent inject stdout or files into subagent prompts directly.
+Totally insecure, no guardrails or anything.
+
+Why? I noticed many times the main agent dispatching agents with prompts like "read X file first" or for reviews "do a git diff", then the agent wastes their first turns doing read/running commands. With this plugin, the main agent can just @inject-file:path/something.md or @inject-cmd:`git diff`, so the subagent can get to work immediately.
+
+Does it save tokens? I didn't measure. Hopefully yes, as it should save at least one tool calling turn.
+
+Notes:
+- if the subagent needs to edit a file, you can't inject it (because it needs to read the original file first)
+- if the file is too big, it will give a warning (which is helpful to the subagent as well, it already knows it's dealing with a big file)
+
+Use at your own risk. If it breaks something, you can keep all the pieces :)
+
+Below is Claude's explanation.
+
+## Introduction
+
 Deterministic context injection for Claude Code subagents. Coordinators write
 one-line directives in an Agent dispatch prompt; a PreToolUse hook expands
 them into the real content at spawn time — the subagent's first turn is real
